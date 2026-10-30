@@ -49,6 +49,11 @@ FIXED_IMAGE_POSITION = "맨앞"   # "맨앞" = 본문 시작(항상 첫 사진),
 TOP_IMAGES = []
 END_IMAGES = []
 
+# 사진에 링크 걸기 (파일명: 주소). 사진을 누르면 전화가 걸리게 tel: 을 붙여요
+IMAGE_LINKS = {
+    "2.png": "tel:050713266763",
+}
+
 # "임시저장" 또는 "발행"  (처음엔 꼭 임시저장으로 확인하세요)
 MODE = "발행"
 
@@ -79,6 +84,18 @@ TYPE_DELAY_MS = (15, 45)   # FAST_INPUT = False 일 때 글자당 ms
 # =====================================================================
 
 BASE = Path(__file__).resolve().parent
+
+# 맥 등 다른 PC에서 위 폴더 경로가 없으면, 이 스크립트 옆의 같은 이름 폴더를 써요
+from pathlib import PureWindowsPath
+if not Path(POSTS_DIR).is_dir() and (BASE / PureWindowsPath(POSTS_DIR).name).is_dir():
+    POSTS_DIR = str(BASE / PureWindowsPath(POSTS_DIR).name)
+if not Path(IMAGES_DIR).is_dir() and (BASE / PureWindowsPath(IMAGES_DIR).name).is_dir():
+    IMAGES_DIR = str(BASE / PureWindowsPath(IMAGES_DIR).name)
+
+# 맥에서는 Home/End 키가 커서를 옮기지 않아서 Cmd+방향키로 대신해요
+IS_MAC = sys.platform == "darwin"
+KEY_LINE_END = "Meta+ArrowRight" if IS_MAC else "End"
+KEY_SELECT_TO_LINE_START = "Shift+Meta+ArrowLeft" if IS_MAC else "Shift+Home"
 PROFILE_DIR = BASE / "chrome_profile"      # 로그인 정보가 저장되는 크롬 프로필
 LOG_FILE = BASE / "완료목록.txt"            # 처리한 글 기록 (다시 안 올림)
 ERR_DIR = BASE / "오류스크린샷"
@@ -323,7 +340,7 @@ def focus_end(page, frame):
     cls = last.get_attribute("class") or ""
     if "se-text" in cls:
         last.locator(".se-text-paragraph").last.click()
-        page.keyboard.press("End")
+        page.keyboard.press(KEY_LINE_END)
     else:
         # 마지막이 사진이면 사진을 선택한 뒤 Enter -> 아래에 새 문단
         last.click()
@@ -349,7 +366,55 @@ def insert_image(page, frame, img):
     else:
         raise RuntimeError(f"사진 업로드가 끝나지 않았어요: {img.name}")
     time.sleep(1.5)
+    url = IMAGE_LINKS.get(img.name) or IMAGE_LINKS.get(img.name.lower())
+    if url:
+        link_image(page, frame, imgs.nth(before), url)
     focus_end(page, frame)
+
+
+LINK_BTN = ["button.se-link-toolbar-button", "button[data-name='link']",
+            "button[class*='link'][class*='toolbar']"]
+LINK_INPUT = ["input.se-custom-layer-link-input", "input[class*='link-input']",
+              "input[placeholder*='URL']", "input[placeholder*='url']", "input[placeholder*='링크']"]
+LINK_OK = ["button.se-custom-layer-link-apply-button", "button[class*='link-apply']",
+           "button[class*='apply']", "button:has-text('확인')"]
+
+
+def link_image(page, frame, comp, url):
+    """방금 넣은 사진을 선택하고 툴바 '링크' 버튼으로 주소를 걸어요. 실패해도 발행은 계속."""
+    try:
+        comp.locator("img").first.click()
+        time.sleep(0.6)
+        if not try_click(frame, LINK_BTN, timeout=3000):
+            raise RuntimeError("링크 버튼을 못 찾았어요")
+        box = None
+        for sel in LINK_INPUT:
+            loc = frame.locator(sel).first
+            try:
+                loc.wait_for(state="visible", timeout=2000)
+                box = loc
+                break
+            except Exception:
+                continue
+        if box is None:
+            raise RuntimeError("링크 입력칸을 못 찾았어요")
+        box.click()
+        box.fill(url)
+        time.sleep(0.3)
+        if not try_click(frame, LINK_OK, timeout=2000):
+            page.keyboard.press("Enter")
+        time.sleep(0.8)
+        # 주소가 안 받아지면 입력칸이 그대로 남아 있어요
+        if box.is_visible():
+            page.keyboard.press("Escape")
+            raise RuntimeError("입력한 주소를 에디터가 받지 않았어요")
+        log(f"  링크 연결: {url}")
+    except Exception as e:
+        log(f"  (사진 링크 실패: {e}. 링크 없이 계속해요)")
+        try:
+            page.keyboard.press("Escape")
+        except Exception:
+            pass
 
 
 def save_draft(page, frame):
@@ -440,9 +505,9 @@ def write_one(page, post_path, images):
         if kind == "sub" and BOLD_SUBHEADINGS:
             # 소제목: 입력 -> 그 줄 선택 -> 굵게 버튼 -> 줄 끝으로
             type_text(page, text)
-            page.keyboard.press("Shift+Home")
+            page.keyboard.press(KEY_SELECT_TO_LINE_START)
             set_bold(frame, True)
-            page.keyboard.press("End")
+            page.keyboard.press(KEY_LINE_END)
         else:
             for li, line in enumerate(lines):
                 type_text(page, line)
