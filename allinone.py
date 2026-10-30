@@ -80,44 +80,7 @@ def main():
     out_dir.mkdir(exist_ok=True)
 
     print(f"\n업체명: {biz} / {len(plan)}개 생성 → {out_dir.name}")
-    sample = gp.SAMPLE_FILE.read_text(encoding="utf-8-sig") if gp.SAMPLE_FILE.exists() else ""
-    angles = random.sample(gp.ANGLES, len(gp.ANGLES))
-    made = 0
-    for i, (dong, phrase) in enumerate(plan):
-        angle = angles[i % len(angles)]
-        print(f"\n[{i + 1}/{len(plan)}] {phrase}  (관점: {angle})")
-        text = ""
-        for attempt in range(2):
-            try:
-                text = gp.clean(gp.write_post(client, region, dong, phrase, angle, sample))
-            except anthropic.AuthenticationError:
-                sys.exit("API 키가 잘못됐어요. API키.txt 를 확인하세요.")
-            except anthropic.PermissionDeniedError:
-                sys.exit("API 키 권한이 없어요. 콘솔에서 키를 확인하세요.")
-            except anthropic.RateLimitError:
-                print("  요청이 많아 잠시 막혔어요. 다시 시도해요...")
-                continue
-            except anthropic.APIStatusError as e:
-                if "credit" in str(e).lower() or "billing" in str(e).lower():
-                    sys.exit("API 크레딧이 부족해요. console.anthropic.com 에서 충전하세요.")
-                print(f"  API 오류({e.status_code}), 다시 시도해요...")
-                continue
-            except anthropic.APIConnectionError:
-                print("  인터넷 연결 오류, 다시 시도해요...")
-                continue
-            except RuntimeError as e:
-                print(f"  {e}")
-                continue
-            problems = gp.check(text, phrase)
-            if not problems:
-                break
-            print(f"  다시 쓰는 중 ({', '.join(problems)})")
-        if not text:
-            print("  실패해서 건너뛰어요.")
-            continue
-        (out_dir / f"{phrase}.txt").write_text(text, encoding="utf-8", newline="")
-        made += 1
-        print(f"  저장 완료 ({len(text)}자)")
+    made = gp.generate_many(client, region, plan, out_dir)
 
     if not made:
         sys.exit("\n만든 글이 없어서 발행은 건너뛰어요.")
