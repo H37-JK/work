@@ -213,7 +213,8 @@ def generate_many(client, region, items, out_dir):
         d, ph, ang = job
         text = generate_one(client, region, d, ph, ang)
         if text:
-            (out_dir / f"{ph}.txt").write_text(text, encoding="utf-8", newline="")
+            with open(out_dir / f"{ph}.txt", "w", encoding="utf-8", newline="") as f:
+                f.write(text)
         return ph, text
 
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
