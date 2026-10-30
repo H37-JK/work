@@ -90,6 +90,8 @@ def main():
     print("크롬 창이 끝날 때까지 마우스/키보드를 건드리지 마세요.\n")
     ap.POSTS_DIR = str(out_dir)
     ap.EXTRA_TAGS = [biz]
+    ap.TOP_IMAGES = ["2.png"]   # 1.png 다음에 2.png
+    ap.END_IMAGES = ["2.png"]   # 글 맨 마지막에 2.png 한 번 더
     ap.cmd_run()
 
 

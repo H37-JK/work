@@ -44,6 +44,11 @@ IMAGE_FOLDERS = {
 FIXED_IMAGE = "1.png"
 FIXED_IMAGE_POSITION = "맨앞"   # "맨앞" = 본문 시작(항상 첫 사진), "맨끝" = 본문 마지막
 
+# 추가 고정 사진 (작업 폴더 안 파일명). TOP = 고정 사진 바로 다음, END = 본문 맨 마지막
+# 예) TOP_IMAGES = ["2.png"], END_IMAGES = ["2.png"]   (7번은 이렇게 자동 설정돼요)
+TOP_IMAGES = []
+END_IMAGES = []
+
 # "임시저장" 또는 "발행"  (처음엔 꼭 임시저장으로 확인하세요)
 MODE = "발행"
 
@@ -114,9 +119,9 @@ def number_key(p):
 
 def list_images(d=None):
     d = Path(d or IMAGES_DIR)
-    fixed = FIXED_IMAGE.lower()
+    fixed = {n.lower() for n in [FIXED_IMAGE, *TOP_IMAGES, *END_IMAGES] if n}
     return sorted([p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in IMG_EXT
-                   and p.name.lower() != fixed],
+                   and p.name.lower() not in fixed],
                   key=number_key)
 
 
@@ -131,6 +136,16 @@ def images_for(title, all_imgs):
                     return imgs, folder
             return all_imgs, f"전체 ({folder} 폴더가 없거나 비어 있음)"
     return all_imgs, "전체"
+
+
+def named_images(names):
+    out = []
+    for n in names:
+        p = Path(IMAGES_DIR) / n
+        if not p.exists():
+            raise RuntimeError(f"고정 사진이 없어요: {p}")
+        out.append(p)
+    return out
 
 
 def fixed_image():
@@ -415,6 +430,9 @@ def write_one(page, post_path, images):
     if fixed and FIXED_IMAGE_POSITION == "맨앞":
         log(f"  고정 사진(맨앞): {fixed.name}")
         insert_image(page, frame, fixed)
+    for img in named_images(TOP_IMAGES):
+        log(f"  고정 사진(위): {img.name}")
+        insert_image(page, frame, img)
     img_i = 0
     for bi, (kind, text) in enumerate(blocks):
         lines = text.split("\n")
@@ -445,6 +463,9 @@ def write_one(page, post_path, images):
     if fixed and FIXED_IMAGE_POSITION != "맨앞":
         log(f"  고정 사진(맨끝): {fixed.name}")
         insert_image(page, frame, fixed)
+    for img in named_images(END_IMAGES):
+        log(f"  고정 사진(맨끝): {img.name}")
+        insert_image(page, frame, img)
 
     human_pause(2, 4)
     try:
@@ -504,7 +525,8 @@ def cmd_test():
         print(f"   문단 {len(blocks)}개, 소제목 {len(subs)}개: {subs}")
         pool, where = images_for(post.stem, imgs)
         print(f"   사진 폴더: {where} ({len(pool)}장 중 {len(ims)}장)")
-        print(f"   사진: {[i.name for i in ims]}  + 고정 {FIXED_IMAGE or '없음'}({FIXED_IMAGE_POSITION})")
+        print(f"   사진: {[i.name for i in ims]}  + 고정 {FIXED_IMAGE or '없음'}({FIXED_IMAGE_POSITION})"
+              f"  위 {TOP_IMAGES or '-'}  맨끝 {END_IMAGES or '-'}")
         print(f"   사진 위치(문단 번호 뒤): {[s + 1 for s in image_slots(len(blocks), len(ims))]}")
     if not jobs:
         print("\n지금 올릴 글이 없어요 (글/사진 부족, 또는 오늘 한도 도달).")
