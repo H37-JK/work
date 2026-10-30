@@ -33,7 +33,7 @@ def main():
         sys.exit("지역을 입력해야 해요.")
     biz = gp.ask("업체명 [Enter = 토일케어]: ", "토일케어")
     try:
-        count = int(gp.ask("전체 몇 개 만들까요? (변기/세면대/싱크대/수전에 고르게 나눠요): ", "0"))
+        count = int(gp.ask("몇 세트 만들까요? (1 = 변기/세면대/싱크대/수전 각 1개씩 총 4개): ", "0"))
     except ValueError:
         count = 0
     if count <= 0:
@@ -58,25 +58,22 @@ def main():
             sys.exit("동 목록을 못 찾았어요. 동 이름을 직접 입력해 주세요.")
         print(f"찾은 동 {len(dongs)}개: {', '.join(dongs)}")
 
-    # 주제를 순서대로 돌리고, 주제마다 아직 안 쓴 동을 랜덤으로 배정
+    # 1세트 = 동 1개 x 4주제(변기/세면대/싱크대/수전). 이미 발행한 제목은 빼요.
     done = ap.done_titles()
-    used = {t: set() for t in TOPICS}
-    order = TOPICS[:]
-    random.shuffle(order)
+    random.shuffle(dongs)
     plan = []
-    tries = 0
-    while len(plan) < count and tries < count * 20:
-        topic = order[len(plan) % len(order)] if tries < count * 10 else random.choice(TOPICS)
-        tries += 1
-        free = [d for d in dongs if d not in used[topic]
-                and f"{region} {d} {topic}" not in done]
-        if not free:
+    sets = 0
+    for d in dongs:
+        if sets >= count:
+            break
+        items = [(d, f"{region} {d} {t}") for t in TOPICS if f"{region} {d} {t}" not in done]
+        if not items:
             continue
-        d = random.choice(free)
-        used[topic].add(d)
-        plan.append((d, f"{region} {d} {topic}"))
-    if len(plan) < count:
-        print(f"※ 새로 쓸 수 있는 조합이 {len(plan)}개뿐이라 {len(plan)}개만 만들어요.")
+        plan += items
+        sets += 1
+    if sets < count:
+        print(f"※ 새로 쓸 수 있는 동이 {sets}개뿐이라 {sets}세트만 만들어요.")
+    print(f"이번 동: {', '.join(dict.fromkeys(d for d, _ in plan))}")
 
     stamp = datetime.datetime.now().strftime("%m%d_%H%M")
     out_dir = BASE / f"{region} 글 {stamp} ({biz})"
