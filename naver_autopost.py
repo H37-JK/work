@@ -20,7 +20,7 @@ from pathlib import Path
 # =====================================================================
 
 # 내 블로그 아이디 (blog.naver.com/여기부분)
-BLOG_ID = "sin6305"
+BLOG_ID = "these9907"
 
 # 글(.txt) 폴더. 파일명 = 제목(키워드)
 POSTS_DIR = r"C:\Users\these\Desktop\네이버자동발행\운정 싱크대 글"
@@ -79,18 +79,6 @@ TYPE_DELAY_MS = (15, 45)   # FAST_INPUT = False 일 때 글자당 ms
 # =====================================================================
 
 BASE = Path(__file__).resolve().parent
-
-# 맥 등 다른 PC에서 위 폴더 경로가 없으면, 이 스크립트 옆의 같은 이름 폴더를 써요
-from pathlib import PureWindowsPath
-if not Path(POSTS_DIR).is_dir() and (BASE / PureWindowsPath(POSTS_DIR).name).is_dir():
-    POSTS_DIR = str(BASE / PureWindowsPath(POSTS_DIR).name)
-if not Path(IMAGES_DIR).is_dir() and (BASE / PureWindowsPath(IMAGES_DIR).name).is_dir():
-    IMAGES_DIR = str(BASE / PureWindowsPath(IMAGES_DIR).name)
-
-# 맥에서는 Home/End 키가 커서를 옮기지 않아서 Cmd+방향키로 대신해요
-IS_MAC = sys.platform == "darwin"
-KEY_LINE_END = "Meta+ArrowRight" if IS_MAC else "End"
-KEY_SELECT_TO_LINE_START = "Shift+Meta+ArrowLeft" if IS_MAC else "Shift+Home"
 PROFILE_DIR = BASE / "chrome_profile"      # 로그인 정보가 저장되는 크롬 프로필
 LOG_FILE = BASE / "완료목록.txt"            # 처리한 글 기록 (다시 안 올림)
 ERR_DIR = BASE / "오류스크린샷"
@@ -335,7 +323,7 @@ def focus_end(page, frame):
     cls = last.get_attribute("class") or ""
     if "se-text" in cls:
         last.locator(".se-text-paragraph").last.click()
-        page.keyboard.press(KEY_LINE_END)
+        page.keyboard.press("End")
     else:
         # 마지막이 사진이면 사진을 선택한 뒤 Enter -> 아래에 새 문단
         last.click()
@@ -452,9 +440,9 @@ def write_one(page, post_path, images):
         if kind == "sub" and BOLD_SUBHEADINGS:
             # 소제목: 입력 -> 그 줄 선택 -> 굵게 버튼 -> 줄 끝으로
             type_text(page, text)
-            page.keyboard.press(KEY_SELECT_TO_LINE_START)
+            page.keyboard.press("Shift+Home")
             set_bold(frame, True)
-            page.keyboard.press(KEY_LINE_END)
+            page.keyboard.press("End")
         else:
             for li, line in enumerate(lines):
                 type_text(page, line)
