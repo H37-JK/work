@@ -115,7 +115,8 @@ def main():
         if not text:
             print("  실패해서 건너뛰어요.")
             continue
-        (out_dir / f"{phrase}.txt").write_text(text, encoding="utf-8", newline="")
+        with open(out_dir / f"{phrase}.txt", "w", encoding="utf-8", newline="") as f:
+            f.write(text)
         made += 1
         print(f"  저장 완료 ({len(text)}자)")
 
