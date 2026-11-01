@@ -15,13 +15,51 @@ import anthropic
 import gen_posts as gp
 import naver_autopost as ap
 
-# 주제별 키워드 문구 (제목 = "[지역] [동] " + 문구)
-TOPICS = [
-    "변기뚫는비용 및 막힘해결 업체 추천",
-    "세면대막힘 비용 및 막힘해결 업체 추천",
-    "싱크대막힘 비용 및 막힘해결 업체 추천",
-    "수전교체비용 및 누수해결 업체 추천",
-]
+# 주제별 제목 문구 (제목 = "[지역] [동] " + 문구). 글마다 아래에서 골라 써서 제목이 매번 달라져요.
+# 사진 폴더를 고르는 단어(변기/세면대/싱크대/수전)는 꼭 넣고, 다른 주제 단어는 섞지 마세요.
+TOPICS = {
+    "변기": [
+        "변기막힘 뚫음 업체 추천 및 뚫는 비용 안내",
+        "변기 뚫는 비용 및 고장 수리 업체 추천",
+        "변기막힘 고장 출장 수리 업체 비용 총정리",
+        "변기 막힘 뚫는업체 추천 및 원인별 해결 방법",
+        "변기뚫음 전문업체 비용 및 막힘 재발 방지",
+        "변기 물 안내려갈때 뚫음 업체 비용 및 해결",
+        "변기 고장 및 막힘 뚫음 업체 비용 알아보기",
+        "변기뚫는비용 및 막힘해결 업체 추천",
+    ],
+    "세면대": [
+        "세면대막힘 업체 추천 및 뚫는 비용 안내",
+        "세면대 물 안내려갈때 막힘 뚫음 업체 비용",
+        "세면대 배수구 막힘 고장 수리 업체 추천",
+        "세면대막힘 뚫는비용 및 배수 고장 해결 업체",
+        "세면대 배수관 막힘 원인과 뚫음 업체 비용",
+        "세면대 팝업 배수구 고장 및 막힘 수리 업체",
+        "세면대막힘 비용 및 막힘해결 업체 추천",
+    ],
+    "싱크대": [
+        "싱크대막힘 뚫음 업체 추천 및 비용 안내",
+        "싱크대 배수구 막힘 고장 수리 업체 비용",
+        "주방 싱크대 물 안내려갈때 뚫는 업체 추천",
+        "싱크대막힘 뚫는비용 및 기름때 막힘 해결 업체",
+        "싱크대 하수구 역류 막힘 뚫음 전문업체",
+        "싱크대 배관 막힘 원인과 뚫는 비용 업체 추천",
+        "싱크대막힘 비용 및 막힘해결 업체 추천",
+    ],
+    "수전": [
+        "수전교체 업체 추천 및 교체 비용 안내",
+        "수전 고장 누수 수리 및 교체 업체 비용",
+        "수도꼭지 수전 고장 교체 업체 추천 및 비용",
+        "수전 물샘 누수 교체 수리 업체 비용 총정리",
+        "주방 수전교체 비용 및 누수해결 업체 추천",
+        "수전교체비용 및 수도꼭지 고장 해결 업체",
+        "수전교체비용 및 누수해결 업체 추천",
+    ],
+}
+
+# 7번 글 길이 (5/6번보다 약 20% 길게)
+LENGTH_OLD = "전체 문단 수 12~15개, 글자 수 공백 포함 650~900자. 길게 쓰지 마."
+LENGTH_NEW = "전체 문단 수 14~18개, 글자 수 공백 포함 800~1100자."
 
 BASE = Path(__file__).resolve().parent
 
@@ -43,6 +81,10 @@ def main():
     # 업체명 반영
     gp.SYSTEM = gp.SYSTEM.replace(f"'{gp.BUSINESS}'", f"'{biz}'")
     gp.BUSINESS = biz
+    if LENGTH_OLD in gp.SYSTEM:
+        gp.SYSTEM = gp.SYSTEM.replace(LENGTH_OLD, LENGTH_NEW)
+    else:
+        print("※ 글 길이 설정을 못 바꿨어요 (gen_posts.py 문구가 달라요). 기존 길이로 써요.")
     if biz not in gp.NAMES.values():
         gp.NAMES[biz] = biz
 
@@ -63,10 +105,18 @@ def main():
     random.shuffle(dongs)
     plan = []
     sets = 0
+    pools = {k: random.sample(v, len(v)) for k, v in TOPICS.items()}
     for d in dongs:
         if sets >= count:
             break
-        items = [(d, f"{region} {d} {t}") for t in TOPICS if f"{region} {d} {t}" not in done]
+        prefix = f"{region} {d} "
+        items = []
+        for word, pool in pools.items():
+            # 이 동에서 이 주제로 이미 발행한 글이 있으면 건너뛰어요 (제목 문구가 달라도)
+            if any(t.startswith(prefix) and word in t for t in done):
+                continue
+            phrase = pool[len(plan + items) % len(pool)]
+            items.append((d, prefix + phrase))
         if not items:
             continue
         plan += items
